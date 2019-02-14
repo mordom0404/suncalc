@@ -224,7 +224,7 @@ SunCalc.getMoonPosition = function (date, lat, lng) {
 
 SunCalc.getMoonIllumination = function (date) {
 
-    var d = toDays(date || new Date()),
+    var d = toDays(date),
         s = sunCoords(d),
         m = moonCoords(d),
 
@@ -303,10 +303,78 @@ SunCalc.getMoonTimes = function (date, lat, lng, inUTC) {
     return result;
 };
 
+SunCalc.getGalaxyPosition = function (date, lat, lng) {
+    var lw = rad * -lng,
+        phi = rad * lat,
+        d   = toDays(date),
 
-// export as Node module / AMD module / browser variable
-if (typeof exports === 'object' && typeof module !== 'undefined') module.exports = SunCalc;
-else if (typeof define === 'function' && define.amd) define(SunCalc);
+        c = {dec: -28.9333333*rad,ra:266.5*rad},
+        H  = siderealTime(d, lw) - c.ra,
+        h = altitude(H, phi, c.dec);
+        h = h + astroRefraction(h);
+    return {
+        azimuth: azimuth(H, phi, c.dec),
+        altitude: h
+    };
+};
+
+SunCalc.getGalaxyTimes = function (date, lat, lng, inUTC) {
+    var t = new Date(date);
+    if (inUTC) t.setUTCHours(0, 0, 0, 0);
+    else t.setHours(0, 0, 0, 0);
+
+    var hc = 0.133 * rad,
+        h0 = SunCalc.getGalaxyPosition(t, lat, lng).altitude - hc,
+        h1, h2, rise, set, a, b, xe, ye, d, roots, x1, x2, dx;
+
+    // go in 2-hour chunks, each time seeing if a 3-point quadratic curve crosses zero (which means rise or set)
+    for (var i = 1; i <= 24; i += 2) {
+        h1 = SunCalc.getGalaxyPosition(hoursLater(t, i), lat, lng).altitude - hc;
+        h2 = SunCalc.getGalaxyPosition(hoursLater(t, i + 1), lat, lng).altitude - hc;
+
+        a = (h0 + h2) / 2 - h1;
+        b = (h2 - h0) / 2;
+        xe = -b / (2 * a);
+        ye = (a * xe + b) * xe + h1;
+        d = b * b - 4 * a * h1;
+        roots = 0;
+
+        if (d >= 0) {
+            dx = Math.sqrt(d) / (Math.abs(a) * 2);
+            x1 = xe - dx;
+            x2 = xe + dx;
+            if (Math.abs(x1) <= 1) roots++;
+            if (Math.abs(x2) <= 1) roots++;
+            if (x1 < -1) x1 = x2;
+        }
+
+        if (roots === 1) {
+            if (h0 < 0) rise = i + x1;
+            else set = i + x1;
+
+        } else if (roots === 2) {
+            rise = i + (ye < 0 ? x2 : x1);
+            set = i + (ye < 0 ? x1 : x2);
+        }
+
+        if (rise && set) break;
+
+        h0 = h2;
+    }
+
+    var result = {};
+    if (rise && set) result.mid = hoursLater(t, (rise + set) / 2);
+    if (rise) result.rise = hoursLater(t, rise);
+    if (set) result.set = hoursLater(t, set);
+
+    if (!rise && !set) result[ye > 0 ? 'alwaysUp' : 'alwaysDown'] = true;
+
+    return result;
+};
+
+// export as AMD module / Node module / browser variable
+if (typeof define === 'function' && define.amd) define(SunCalc);
+else if (typeof module !== 'undefined') module.exports = SunCalc;
 else window.SunCalc = SunCalc;
 
 }());
