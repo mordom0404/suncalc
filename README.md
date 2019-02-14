@@ -1,3 +1,18 @@
+各字段对应：
+天文黎明        nightEnd
+航海黎明        nauticalDawn
+黎明            dawn
+黎明蓝调        dawnBlueStart~dawnBlueEnd
+日出            sunrise~sunriseEnd
+上午黄金时段结束 goldenHourEnd
+正午            solarNoon
+下午黄金时段开始 goldenHour
+日落            sunsetStart~sunset
+黄昏蓝调        duskBlueStart~duskBlueEnd
+黄昏            dusk
+航海黄昏        nauticalDusk
+天文黄昏        night
+午夜            nadir
 
 SunCalc
 =======
